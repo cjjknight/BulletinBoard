@@ -1,66 +1,42 @@
-//
-//  ContentView.swift
-//  BulletinBoard
-//
-//  Created by Christopher Johnson on 7/30/24.
-//
-
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @ObservedObject var viewModel = BulletinBoardViewModel()
+
+    @State private var title = ""
+    @State private var content = ""
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
+        NavigationView {
+            VStack {
+                List(viewModel.items) { item in
+                    ItemView(item: item)
+                }
+
+                HStack {
+                    TextField("Title", text: $title).textFieldStyle(RoundedBorderTextFieldStyle())
+                    TextField("Content", text: $content).textFieldStyle(RoundedBorderTextFieldStyle())
+                    Button(action: {
+                        viewModel.addItem(title: title, content: content)
+                        title = ""
+                        content = ""
+                    }) {
+                        Text("Add")
                     }
                 }
-                .onDelete(perform: deleteItems)
+                .padding()
             }
-#if os(macOS)
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200)
-#endif
-            .toolbar {
-#if os(iOS)
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-#endif
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
-        } detail: {
-            Text("Select an item")
-        }
-    }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+            .navigationBarTitle("Bulletin Board")
+            .onAppear {
+                viewModel.fetchItems()
             }
         }
     }
 }
 
-#Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
-}
+let itemFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.dateStyle = .short
+    formatter.timeStyle = .short
+    return formatter
+}()
